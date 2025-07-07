@@ -113,24 +113,34 @@ SOURCE_REGISTRY = {
 def scrape_google_shopping(query):
     results = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
         page = context.new_page()
 
-        search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}&tbm=shop&gl=US&udm=28"
+        search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}&tbm=shop&gl=US"
         page.goto(search_url, timeout=30000)
-        page.wait_for_timeout(10000) 
+        page.wait_for_load_state("domcontentloaded")
+        page.wait_for_timeout(10000)  
 
-        product_cards = page.locator("div.sh-ds__content")
+        cards = page.query_selector_all("g-card.tkfIqc")
 
-        count = product_cards.count()
-        for i in range(count):
+        if not cards:
+            print("[DEBUG] No g-card.tkfIqc found. Dumping partial HTML:")
+            print(page.content()[:1000]) 
+
+        for card in cards:
             try:
-                name = product_cards.nth(i).locator("h4").inner_text(timeout=1000)
-                price_str = product_cards.nth(i).locator("span.a8Pemb").inner_text(timeout=1000)
-                link = product_cards.nth(i).locator("a").first.get_attribute("href")
+                title_el = card.query_selector("div[role='heading']") or card.query_selector("div.tAxDx")
+                price_el = card.query_selector("span.a8Pemb")
+                link_el = card.query_selector("a")
 
-                if not (name and price_str and link):
+                if not title_el or not price_el or not link_el:
+                    continue
+
+                name = title_el.inner_text().strip()
+                price_str = price_el.inner_text().strip()
+                link = link_el.get_attribute("href")
+                if not link:
                     continue
 
                 price_match = re.search(r"[\d,]+(?:\.\d{2})?", price_str)
@@ -139,13 +149,14 @@ def scrape_google_shopping(query):
 
                 price = price_match.group().replace(",", "")
                 results.append({
-                    "productName": name.strip(),
+                    "productName": name,
                     "price": price,
                     "currency": "USD",
                     "link": "https://www.google.com" + link
                 })
             except Exception as e:
-                continue  # skip if something fails
+                print(f"[card error] {e}")
+                continue
 
         browser.close()
     return results
