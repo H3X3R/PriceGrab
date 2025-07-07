@@ -1,11 +1,10 @@
-import requests
-from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
+# import requests
+# from bs4 import BeautifulSoup
+# from fake_useragent import UserAgent
 from pprint import pprint
-from playwright.sync_api import sync_playwright
-import re
-
-# price_fetcher.py
+# from playwright.sync_api import sync_playwright
+# import re
+from helper import scrape_google_shopping
 
 # === SOURCE REGISTRY ===
 
@@ -110,56 +109,56 @@ SOURCE_REGISTRY = {
 
 
 
-def scrape_google_shopping(query):
-    results = []
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-        page = context.new_page()
+# def scrape_google_shopping(query):
+#     results = []
+#     with sync_playwright() as p:
+#         browser = p.chromium.launch(headless=False)
+#         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+#         page = context.new_page()
 
-        search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}&tbm=shop&gl=US"
-        page.goto(search_url, timeout=30000)
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_timeout(10000)  
+#         search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}&tbm=shop&gl=US"
+#         page.goto(search_url, timeout=30000)
+#         page.wait_for_load_state("domcontentloaded")
+#         page.wait_for_timeout(10000)  
 
-        cards = page.query_selector_all("g-card.tkfIqc")
+#         cards = page.query_selector_all("g-card.tkfIqc")
 
-        if not cards:
-            print("[DEBUG] No g-card.tkfIqc found. Dumping partial HTML:")
-            print(page.content()[:1000]) 
+#         if not cards:
+#             print("[DEBUG] No g-card.tkfIqc found. Dumping partial HTML:")
+#             print(page.content()[:1000]) 
 
-        for card in cards:
-            try:
-                title_el = card.query_selector("div[role='heading']") or card.query_selector("div.tAxDx")
-                price_el = card.query_selector("span.a8Pemb")
-                link_el = card.query_selector("a")
+#         for card in cards:
+#             try:
+#                 title_el = card.query_selector("div[role='heading']") or card.query_selector("div.tAxDx")
+#                 price_el = card.query_selector("span.a8Pemb")
+#                 link_el = card.query_selector("a")
 
-                if not title_el or not price_el or not link_el:
-                    continue
+#                 if not title_el or not price_el or not link_el:
+#                     continue
 
-                name = title_el.inner_text().strip()
-                price_str = price_el.inner_text().strip()
-                link = link_el.get_attribute("href")
-                if not link:
-                    continue
+#                 name = title_el.inner_text().strip()
+#                 price_str = price_el.inner_text().strip()
+#                 link = link_el.get_attribute("href")
+#                 if not link:
+#                     continue
 
-                price_match = re.search(r"[\d,]+(?:\.\d{2})?", price_str)
-                if not price_match:
-                    continue
+#                 price_match = re.search(r"[\d,]+(?:\.\d{2})?", price_str)
+#                 if not price_match:
+#                     continue
 
-                price = price_match.group().replace(",", "")
-                results.append({
-                    "productName": name,
-                    "price": price,
-                    "currency": "USD",
-                    "link": "https://www.google.com" + link
-                })
-            except Exception as e:
-                print(f"[card error] {e}")
-                continue
+#                 price = price_match.group().replace(",", "")
+#                 results.append({
+#                     "productName": name,
+#                     "price": price,
+#                     "currency": "USD",
+#                     "link": "https://www.google.com" + link
+#                 })
+#             except Exception as e:
+#                 print(f"[card error] {e}")
+#                 continue
 
-        browser.close()
-    return results
+#         browser.close()
+#     return results
 
 
 
